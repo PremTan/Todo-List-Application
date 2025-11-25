@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: To-Do-List
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/todo_db
+    username: postgres
+    password: admin
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
