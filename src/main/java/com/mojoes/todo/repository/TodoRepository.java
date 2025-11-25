@@ -10,11 +10,11 @@ import java.util.List;
 
 public interface TodoRepository extends JpaRepository<Todo, Long> {
 
-    List<Todo> findByUserId(Long id);
+    List<Todo> findByUserEmail(String email);
 
-    List<Todo> findByUserIdAndPriority(Long userId, Priority priority);
+    List<Todo> findByUserEmailAndPriority(String email, Priority priority);
 
-    List<Todo> findByUserIdAndStatus(Long userId, Status status);
+    List<Todo> findByUserEmailAndStatus(String email, Status status);
 
-    List<Todo> findByUserIdAndDueDate(Long userId, LocalDate dueDate);
+    List<Todo> findByUserEmailAndDueDate(String email, LocalDate dueDate);
 }

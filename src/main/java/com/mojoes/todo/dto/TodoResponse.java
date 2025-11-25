@@ -21,5 +21,4 @@ public class TodoResponse {
     private Priority priority;
     private Status status;
     private LocalDate dueDate;
-    private Long userId;
 }

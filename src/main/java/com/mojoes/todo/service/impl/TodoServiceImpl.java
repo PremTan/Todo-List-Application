@@ -10,6 +10,7 @@ import com.mojoes.todo.entity.User;
 import com.mojoes.todo.exception.ResourceNotFoundException;
 import com.mojoes.todo.repository.TodoRepository;
 import com.mojoes.todo.repository.UserRepository;
+import com.mojoes.todo.security.SecurityUtil;
 import com.mojoes.todo.service.TodoService;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -28,8 +30,9 @@ public class TodoServiceImpl implements TodoService {
 
     @Override
     public TodoResponse createTodo(TodoRequest request) {
-        User user = userRepository.findById(request.getUserId())
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with id : " + request.getUserId()));
+        String email = SecurityUtil.getCurrentUserEmail();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         Todo todo = new Todo();
         todo.setTitle(request.getTitle());
@@ -40,31 +43,33 @@ public class TodoServiceImpl implements TodoService {
         todo.setUser(user);
         Todo saved = todoRepository.save(todo);
 
-        TodoResponse map = mapper.map(saved, TodoResponse.class);
-        map.setUserId(user.getId());
-        return map;
+        return mapper.map(saved, TodoResponse.class);
     }
 
     @Override
-    public List<TodoResponse> getTodoByUserId(Long userId) {
-        if (!userRepository.existsById(userId)) {
-            throw new ResourceNotFoundException("User not found with id: " + userId);
-        }
-
-        return todoRepository.findByUserId(userId)
+    public List<TodoResponse> getTodosByCurrentUser() {
+        String email = SecurityUtil.getCurrentUserEmail();
+        return todoRepository.findByUserEmail(email)
                 .stream()
                 .map(todo -> mapper.map(todo, TodoResponse.class))
                 .toList();
     }
 
     @Override
-    public TodoResponse updateTodo(Long id, TodoRequest request) {
+    public TodoResponse getById(Long id) {
+        String email = SecurityUtil.getCurrentUserEmail();
         Todo todo = todoRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("ToDo list not found with id : " + id));
-        
-        if (!todo.getUser().getId().equals(request.getUserId())) {
-            throw new ResourceNotFoundException("Owner can only update his todo");
-        }
+                .filter(t -> t.getUser().getEmail().equals(email))
+                .orElseThrow(() -> new ResourceNotFoundException("Todo not found"));
+        return mapper.map(todo, TodoResponse.class);
+    }
+
+    @Override
+    public TodoResponse updateTodo(Long id, TodoRequest request) {
+        String email = SecurityUtil.getCurrentUserEmail();
+        Todo todo = todoRepository.findById(id)
+                .filter(t -> t.getUser().getEmail().equals(email))
+                .orElseThrow(() -> new ResourceNotFoundException("Todo not found"));
 
         todo.setTitle(request.getTitle());
         todo.setDescription(request.getDescription());
@@ -74,26 +79,23 @@ public class TodoServiceImpl implements TodoService {
 
         Todo saved = todoRepository.save(todo);
 
-        TodoResponse map = mapper.map(saved, TodoResponse.class);
-        map.setUserId(saved.getUser().getId());
-        return map;
+        return mapper.map(saved, TodoResponse.class);
     }
 
     @Override
     public void deleteTodo(Long id) {
-        if(!todoRepository.existsById(id)){
-            throw new ResourceNotFoundException("ToDo list not found with id : " + id);
-        }
-        todoRepository.deleteById(id);
+        String email = SecurityUtil.getCurrentUserEmail();
+        Todo todo = todoRepository.findById(id)
+                .filter(t -> t.getUser().getEmail().equals(email))
+                .orElseThrow(() -> new ResourceNotFoundException("Todo not found"));
+        todoRepository.delete(todo);
     }
 
     @Override
-    public List<TodoResponse> getTodosByFilters(Long userId, Priority priority, Status status, LocalDate dueDate) {
-        if (!userRepository.existsById(userId)) {
-            throw new ResourceNotFoundException("User not found with id: " + userId);
-        }
+    public List<TodoResponse> getTodosByFilters(Priority priority, Status status, LocalDate dueDate) {
 
-        List<Todo> todos = todoRepository.findByUserId(userId);
+        String email = SecurityUtil.getCurrentUserEmail();
+        List<Todo> todos = todoRepository.findByUserEmail(email);
 
         if (priority != null) {
             todos = todos.stream().filter(t -> t.getPriority() == priority).toList();

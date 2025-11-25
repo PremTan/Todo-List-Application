@@ -12,11 +12,13 @@ public interface TodoService {
 
     TodoResponse createTodo(TodoRequest request);
 
-    List<TodoResponse> getTodoByUserId(Long userId);
+    List<TodoResponse> getTodosByCurrentUser();
+
+    TodoResponse getById(Long id);
 
     TodoResponse updateTodo(Long id, TodoRequest request);
 
     void deleteTodo(Long id);
 
-    List<TodoResponse> getTodosByFilters(Long userId, Priority priority, Status status, LocalDate dueDate);
+    List<TodoResponse> getTodosByFilters(Priority priority, Status status, LocalDate dueDate);
 }

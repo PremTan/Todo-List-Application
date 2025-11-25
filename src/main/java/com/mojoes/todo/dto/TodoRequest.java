@@ -27,7 +27,4 @@ public class TodoRequest {
     @FutureOrPresent
     @NotNull(message = "Due date is required")
     private LocalDate dueDate;
-
-    @NotNull(message = "User id is required")
-    private Long userId;
 }

@@ -26,9 +26,14 @@ public class TodoController {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.createTodo(req));
     }
 
-    @GetMapping("/user/{userId}")
-    public ResponseEntity<List<TodoResponse>> getByUserId(@PathVariable("userId") Long userId){
-        return ResponseEntity.ok(service.getTodoByUserId(userId));
+    @GetMapping
+    public ResponseEntity<List<TodoResponse>> getCurrentUserTodos() {
+        return ResponseEntity.ok(service.getTodosByCurrentUser());
+    }
+
+    @GetMapping("/todo/{id}")
+    public ResponseEntity<TodoResponse> getById(@PathVariable Long id){
+        return ResponseEntity.ok(service.getById(id));
     }
 
     @PutMapping("/{id}")
@@ -43,10 +48,9 @@ public class TodoController {
     }
 
     @GetMapping("/filter")
-    public ResponseEntity<List<TodoResponse>> getByFilters(@RequestParam Long userId,
-                                                           @RequestParam(required = false) Priority priority,
+    public ResponseEntity<List<TodoResponse>> getByFilters(@RequestParam(required = false) Priority priority,
                                                            @RequestParam(required = false) Status status,
                                                            @RequestParam(required = false) LocalDate dueDate){
-        return ResponseEntity.ok(service.getTodosByFilters(userId, priority, status, dueDate));
+        return ResponseEntity.ok(service.getTodosByFilters(priority, status, dueDate));
     }
 }
