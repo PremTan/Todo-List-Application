@@ -14,6 +14,9 @@ import com.mojoes.todo.security.SecurityUtil;
 import com.mojoes.todo.service.TodoService;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -47,12 +50,21 @@ public class TodoServiceImpl implements TodoService {
     }
 
     @Override
-    public List<TodoResponse> getTodosByCurrentUser() {
+    public Page<TodoResponse> getTodosByCurrentUser(int page, int size, String sortBy, String sortDir, String text) {
         String email = SecurityUtil.getCurrentUserEmail();
-        return todoRepository.findByUserEmail(email)
-                .stream()
-                .map(todo -> mapper.map(todo, TodoResponse.class))
-                .toList();
+
+        Sort sort = sortDir.equalsIgnoreCase("desc") ? Sort.by(sortBy).descending() : Sort.by(sortBy).ascending();
+
+        PageRequest pageRequest = PageRequest.of(page, size, sort);
+
+        Page<Todo> todos;
+        if(text != null && !text.isEmpty()){
+            todos = todoRepository.findByUserEmailAndTitleContainingIgnoreCase(email, text, pageRequest);
+        } else{
+            todos = todoRepository.findByUserEmail(email, pageRequest);
+        }
+
+        return todos.map(todo -> mapper.map(todo, TodoResponse.class));
     }
 
     @Override
