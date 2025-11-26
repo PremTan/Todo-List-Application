@@ -1,7 +1,6 @@
 package com.mojoes.todo.config;
 
 import com.mojoes.todo.security.JwtAuthFilter;
-import com.mojoes.todo.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

@@ -12,6 +12,19 @@ spring:
       ddl-auto: update
     show-sql: true
 
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: pt.hrdept.services@gmail.com
+    password: slej mrey ykxk xypb
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+
 jwt:
   secret: "FNKJDSHFSHFKJHFJHSGJKSHGKJSHGKJHGFKJDFH"
   expiration: 3600000

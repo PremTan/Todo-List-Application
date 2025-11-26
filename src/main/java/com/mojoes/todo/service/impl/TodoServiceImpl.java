@@ -11,6 +11,7 @@ import com.mojoes.todo.exception.ResourceNotFoundException;
 import com.mojoes.todo.repository.TodoRepository;
 import com.mojoes.todo.repository.UserRepository;
 import com.mojoes.todo.security.SecurityUtil;
+import com.mojoes.todo.service.EmailService;
 import com.mojoes.todo.service.TodoService;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
@@ -30,6 +31,7 @@ public class TodoServiceImpl implements TodoService {
     private final TodoRepository todoRepository;
     private final UserRepository userRepository;
     private final ModelMapper mapper;
+    private final EmailService emailService;
 
     @Override
     public TodoResponse createTodo(TodoRequest request) {
@@ -45,6 +47,17 @@ public class TodoServiceImpl implements TodoService {
         todo.setDueDate(request.getDueDate());
         todo.setUser(user);
         Todo saved = todoRepository.save(todo);
+
+        String body =
+                "<h2 style='color:green;'>New Todo is created successfully....</h2>" +
+                        "<p>Hi " + user.getName() + ",</p>" +
+                        "<p>You created a new task :</p>" +
+                        "<b>Title :</b>"+todo.getTitle() +"<br>" +
+                        "<b>Status :</b> "+todo.getStatus()+"<br>" +
+                        "<b>Priority :</b>"+todo.getPriority()+"<br><br>" +
+                        "Thank you.";
+
+        emailService.sendHtmlEmail(email, "Todo Created.", body);
 
         return mapper.map(saved, TodoResponse.class);
     }
@@ -101,6 +114,12 @@ public class TodoServiceImpl implements TodoService {
                 .filter(t -> t.getUser().getEmail().equals(email))
                 .orElseThrow(() -> new ResourceNotFoundException("Todo not found"));
         todoRepository.delete(todo);
+
+        emailService.sendSimpleEmail(email,
+                "Todo Deleted..",
+                "Hi " + todo.getUser().getName() + ",\nYour task '" +
+                        todo.getTitle() + "' is deleted."
+        );
     }
 
     @Override
