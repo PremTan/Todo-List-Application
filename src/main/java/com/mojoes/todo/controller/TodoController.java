@@ -11,6 +11,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -60,5 +61,11 @@ public class TodoController {
                                                            @RequestParam(required = false) Status status,
                                                            @RequestParam(required = false) LocalDate dueDate){
         return ResponseEntity.ok(service.getTodosByFilters(priority, status, dueDate));
+    }
+
+    @PostMapping("/import")
+    public ResponseEntity<String> importTodos(@RequestParam("file")MultipartFile file){
+        service.importTodosFromFile(file);
+        return ResponseEntity.ok("Todos imported successfully..");
     }
 }

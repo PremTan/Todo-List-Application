@@ -2,7 +2,6 @@ package com.mojoes.todo.service.impl;
 
 import com.mojoes.todo.dto.TodoRequest;
 import com.mojoes.todo.dto.TodoResponse;
-import com.mojoes.todo.dto.UserResponse;
 import com.mojoes.todo.entity.Priority;
 import com.mojoes.todo.entity.Status;
 import com.mojoes.todo.entity.Todo;
@@ -11,7 +10,6 @@ import com.mojoes.todo.exception.ResourceNotFoundException;
 import com.mojoes.todo.repository.TodoRepository;
 import com.mojoes.todo.repository.UserRepository;
 import com.mojoes.todo.security.SecurityUtil;
-import com.mojoes.todo.service.EmailService;
 import com.mojoes.todo.service.TodoService;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
@@ -19,10 +17,14 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.BufferedOutputStream;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -123,6 +125,35 @@ public class TodoServiceImpl implements TodoService {
         return todos.stream()
                 .map(todo -> mapper.map(todo, TodoResponse.class))
                 .toList();
+    }
+
+    @Override
+    public void importTodosFromFile(MultipartFile file) {
+        String email = SecurityUtil.getCurrentUserEmail();
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        try(BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream()))){
+
+            String line;
+            reader.readLine();
+
+            while ((line = reader.readLine()) != null){
+                String [] arrayData = line.split(",");
+                Todo todo = new Todo();
+                todo.setTitle(arrayData[0]);
+                todo.setDescription(arrayData[1]);
+                todo.setPriority(Priority.valueOf(arrayData[2]));
+                todo.setStatus(Status.valueOf(arrayData[3]));
+                todo.setDueDate(LocalDate.parse(arrayData[4]));
+                todo.setUser(user);
+
+                todoRepository.save(todo);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
 }
