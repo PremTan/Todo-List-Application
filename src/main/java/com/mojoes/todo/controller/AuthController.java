@@ -1,18 +1,12 @@
 package com.mojoes.todo.controller;
 
-import com.mojoes.todo.dto.AuthRequest;
-import com.mojoes.todo.dto.AuthResponse;
-import com.mojoes.todo.dto.UserRequest;
-import com.mojoes.todo.dto.UserResponse;
+import com.mojoes.todo.dto.*;
 import com.mojoes.todo.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -30,6 +24,24 @@ public class AuthController {
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody AuthRequest request) {
         String token = userService.login(request);
         return ResponseEntity.ok(new AuthResponse(token));
+    }
+
+    @PutMapping("/update-password")
+    public ResponseEntity<String> updatePassword(@Valid @RequestBody UpdatePasswordRequest request){
+        userService.updatePassword(request);
+        return ResponseEntity.ok("Password updated successfully");
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<String> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request){
+        userService.forgotPassword(request);
+        return ResponseEntity.ok("OTP sent to your email");
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<String> resetPassword(@Valid @RequestBody ResetPasswordRequest request){
+        userService.resetPassword(request);
+        return ResponseEntity.ok("Password reset successfully");
     }
 
 }

@@ -29,6 +29,8 @@ public class User {
     @Column(nullable = false)
     private String password;
 
+    private String resetOtp;
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
     private List<Todo> todos;
 }

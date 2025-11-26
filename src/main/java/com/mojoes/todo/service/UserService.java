@@ -1,9 +1,7 @@
 package com.mojoes.todo.service;
 
-import com.mojoes.todo.dto.AuthRequest;
-import com.mojoes.todo.dto.UserRequest;
-import com.mojoes.todo.dto.UserResponse;
-import com.mojoes.todo.dto.UserUpdateRequest;
+import com.mojoes.todo.dto.*;
+import jakarta.validation.Valid;
 
 public interface UserService {
 
@@ -16,4 +14,10 @@ public interface UserService {
     String login(AuthRequest request);
 
     UserResponse getCurrentUser();
+
+    void updatePassword(UpdatePasswordRequest request);
+
+    void forgotPassword(ForgotPasswordRequest req);
+
+    void resetPassword(ResetPasswordRequest request);
 }
