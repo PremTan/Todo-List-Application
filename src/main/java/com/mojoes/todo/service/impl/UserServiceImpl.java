@@ -1,10 +1,12 @@
 package com.mojoes.todo.service.impl;
 
 import com.mojoes.todo.dto.*;
+import com.mojoes.todo.entity.PasswordReset;
 import com.mojoes.todo.entity.User;
 import com.mojoes.todo.exception.DuplicateEmailException;
 import com.mojoes.todo.exception.ResourceNotFoundException;
 import com.mojoes.todo.mapper.UserMapper;
+import com.mojoes.todo.repository.PasswordResetRepository;
 import com.mojoes.todo.repository.UserRepository;
 import com.mojoes.todo.security.JwtUtil;
 import com.mojoes.todo.security.SecurityUtil;
@@ -19,6 +21,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
@@ -32,6 +37,7 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final EmailService emailService;
+    private final PasswordResetRepository passwordResetRepository;
 
     @Transactional
     @Override
@@ -159,17 +165,24 @@ public class UserServiceImpl implements UserService {
 
         User user = userRepository.findByEmail(req.getEmail())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
         SecureRandom random = new SecureRandom();
-        String collect = random.ints(6, 0, 10)
+        String otp = random.ints(6, 0, 10)
                 .mapToObj(String::valueOf)
                 .collect(Collectors.joining());
 
-        user.setResetOtp(collect);
-        userRepository.save(user);
+        passwordResetRepository.deleteByEmail(req.getEmail());
+        PasswordReset passwordReset = new PasswordReset();
+        passwordReset.setOtp(otp);
+        passwordReset.setEmail(req.getEmail());
+        passwordReset.setExpiryTime(LocalDateTime.now().plusSeconds(30));
+
+        passwordResetRepository.save(passwordReset);
+
         log.info("OTP generated for {}", req.getEmail());
 
         String body = "Hi " + user.getName() + ",\n\n" +
-                "Your OTP for password reset is : " + collect + "\n" +
+                "Your OTP for password reset is : " + otp + "\n" +
                 "Todo List App";
 
         emailService.sendSimpleEmail(user.getEmail(), "Password reset OTP", body);
@@ -183,14 +196,23 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        if(!request.getOtp().equals(user.getResetOtp())){
+        PasswordReset passwordReset = passwordResetRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new IllegalArgumentException("OTP not found"));
+
+        if(passwordReset.getExpiryTime().isBefore(LocalDateTime.now())){
+            log.error("OTP is Expired = {}", request.getEmail());
+            throw new IllegalArgumentException("OTP is expired.. Generate new OTP again.");
+        }
+
+        if(!request.getOtp().equals(passwordReset.getOtp())){
             log.error("Invalid OTP for email = {}", request.getEmail());
             throw new IllegalArgumentException("Invalid OTP");
         }
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
-        user.setResetOtp(null);
         userRepository.save(user);
+
+        passwordResetRepository.deleteByEmail(request.getEmail());
 
         log.info("Password reset successful : {}", request.getEmail());
 
@@ -199,6 +221,68 @@ public class UserServiceImpl implements UserService {
                 "Todo List App";
 
         emailService.sendSimpleEmail(user.getEmail(), "Password reset successfully.", body);
+    }
+
+    @Transactional
+    @Override
+    public void blockUser(Long userId) {
+        String currentEmail = SecurityUtil.getCurrentUserEmail();
+
+        User admin = userRepository.findByEmail(currentEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Admin not found"));
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        if(admin.getId().equals(user.getId())){
+            throw new IllegalArgumentException("Admin cannot block himself..");
+        }
+
+        if (user.isBlocked()) {
+            throw new IllegalStateException("User is already blocked.");
+        }
+
+        user.setBlocked(true);
+        userRepository.save(user);
+        log.info("Blocked user successfully : {}",user.getEmail());
+    }
+
+    @Transactional
+    @Override
+    public void unBlockUser(Long userId) {
+        String currentEmail = SecurityUtil.getCurrentUserEmail();
+
+        User admin = userRepository.findByEmail(currentEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Admin not found"));
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        if (admin.getId().equals(user.getId())) {
+            throw new IllegalArgumentException("Admin cannot unblock himself.");
+        }
+
+        if (!user.isBlocked()) {
+            throw new IllegalStateException("User is already unblocked.");
+        }
+
+        user.setBlocked(false);
+        userRepository.save(user);
+        log.info("Unblocked the user : {}",user.getEmail());
+    }
+
+    @Override
+    public List<UserResponse> getAllUsers() {
+        return userRepository.findAll().stream()
+                .map(UserMapper::toDto)
+                .toList();
+    }
+
+    @Override
+    public UserResponse getUserById(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        return UserMapper.toDto(user);
     }
 
 }

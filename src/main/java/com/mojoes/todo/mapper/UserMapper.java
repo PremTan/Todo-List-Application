@@ -20,6 +20,7 @@ public class UserMapper {
         dto.setId(user.getId());
         dto.setName(user.getName());
         dto.setEmail(user.getEmail());
+        dto.setBlocked(user.isBlocked());
         return dto;
     }
 

@@ -29,8 +29,13 @@ public class User {
     @Column(nullable = false)
     private String password;
 
-    private String resetOtp;
+    @Column(nullable = false)
+    @Enumerated(value = EnumType.STRING)
+    private Role role = Role.USER;
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+    @Column(nullable = false)
+    private boolean blocked = false;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Todo> todos;
 }

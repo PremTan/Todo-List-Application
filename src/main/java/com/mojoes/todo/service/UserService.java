@@ -1,7 +1,8 @@
 package com.mojoes.todo.service;
 
 import com.mojoes.todo.dto.*;
-import jakarta.validation.Valid;
+
+import java.util.List;
 
 public interface UserService {
 
@@ -20,4 +21,12 @@ public interface UserService {
     void forgotPassword(ForgotPasswordRequest req);
 
     void resetPassword(ResetPasswordRequest request);
+
+    void blockUser(Long userId);
+
+    void unBlockUser(Long userId);
+
+    List<UserResponse> getAllUsers();
+
+    UserResponse getUserById(Long id);
 }

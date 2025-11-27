@@ -1,5 +1,6 @@
 package com.mojoes.todo.config;
 
+import com.mojoes.todo.entity.Role;
 import com.mojoes.todo.security.JwtAuthFilter;
 import com.mojoes.todo.security.Oauth2SuccessHandler;
 import lombok.RequiredArgsConstructor;
@@ -29,17 +30,22 @@ public class SecurityConfig {
     private final Oauth2SuccessHandler oauth2SuccessHandler;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity security) throws Exception{
+    public SecurityFilterChain securityFilterChain(HttpSecurity security) throws Exception {
         security.csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
-                        .requestMatchers("/api/auth/forgot-password", "/api/auth/reset-password").permitAll()
+                        .requestMatchers("/api/auth/register",
+                        "/api/auth/login",
+                        "/api/auth/forgot-password",
+                        "/api/auth/reset-password").permitAll()
+                        .requestMatchers("/api/admin/**").hasRole(Role.ADMIN.getLabel())
+                        .requestMatchers("/api/todos/**").hasAnyRole(Role.ADMIN.getLabel(), Role.USER.getLabel())
+                        .requestMatchers("/api/users/**").hasAnyRole(Role.ADMIN.getLabel(), Role.USER.getLabel())
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
-                .oauth2Login(oauth -> oauth.failureHandler((request, response, ex) -> log.error("OAuth Error : {}",ex.getMessage()))
+                .oauth2Login(oauth -> oauth.failureHandler((request, response, ex) -> log.error("OAuth Error : {}", ex.getMessage()))
                         .successHandler(oauth2SuccessHandler));
         return security.build();
     }
@@ -55,7 +61,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public CorsConfigurationSource corsConfigurationSource(){
+    public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(List.of("http://localhost:3000"));
         config.setAllowedMethods(List.of("GET", "POST", "PATCH", "PUT", "DELETE"));
