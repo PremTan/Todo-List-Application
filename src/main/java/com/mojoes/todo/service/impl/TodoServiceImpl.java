@@ -7,140 +7,155 @@ import com.mojoes.todo.entity.Status;
 import com.mojoes.todo.entity.Todo;
 import com.mojoes.todo.entity.User;
 import com.mojoes.todo.exception.ResourceNotFoundException;
+import com.mojoes.todo.mapper.TodoMapper;
 import com.mojoes.todo.repository.TodoRepository;
 import com.mojoes.todo.repository.UserRepository;
 import com.mojoes.todo.security.SecurityUtil;
 import com.mojoes.todo.service.TodoService;
 import lombok.RequiredArgsConstructor;
-import org.modelmapper.ModelMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStreamReader;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
+@Transactional(readOnly = true)
 public class TodoServiceImpl implements TodoService {
 
     private final TodoRepository todoRepository;
     private final UserRepository userRepository;
-    private final ModelMapper mapper;
 
+    @Transactional
     @Override
     public TodoResponse createTodo(TodoRequest request) {
         String email = SecurityUtil.getCurrentUserEmail();
+        log.info("Creating todo for user : {}", email);
+
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        Todo todo = new Todo();
-        todo.setTitle(request.getTitle());
-        todo.setDescription(request.getDescription());
-        todo.setPriority(request.getPriority());
-        todo.setStatus(request.getStatus());
-        todo.setDueDate(request.getDueDate());
+        Todo todo = TodoMapper.toEntity(request);
         todo.setUser(user);
+
+        log.debug("Saving todo : {}", todo);
         Todo saved = todoRepository.save(todo);
 
-        return mapper.map(saved, TodoResponse.class);
+        return TodoMapper.toDto(saved);
     }
 
     @Override
-    public Page<TodoResponse> getTodosByCurrentUser(int page, int size, String sortBy, String sortDir, String text) {
+    public Page<TodoResponse> getTodosByCurrentUser(int page, int size, String sortBy, String sortDir,
+                                                    String text, Priority priority, Status status, LocalDate dueDate) {
         String email = SecurityUtil.getCurrentUserEmail();
+        log.info("Fetching todos of user : {} by pagination and filtering",email);
 
         Sort sort = sortDir.equalsIgnoreCase("desc") ? Sort.by(sortBy).descending() : Sort.by(sortBy).ascending();
 
         PageRequest pageRequest = PageRequest.of(page, size, sort);
 
         Page<Todo> todos;
-        if(text != null && !text.isEmpty()){
+        if (text != null && !text.isEmpty()) {
             todos = todoRepository.findByUserEmailAndTitleContainingIgnoreCase(email, text, pageRequest);
-        } else{
+        } else {
             todos = todoRepository.findByUserEmail(email, pageRequest);
         }
 
-        return todos.map(todo -> mapper.map(todo, TodoResponse.class));
+        Stream<Todo> todos2 = todos.stream();
+
+        if (priority != null) {
+            todos2 = todos2.filter(t -> t.getPriority() == priority);
+        }
+        if (status != null) {
+            todos2 = todos2.filter(t -> t.getStatus() == status);
+        }
+        if (dueDate != null) {
+            todos2 = todos2.filter(t -> t.getDueDate().equals(dueDate));
+        }
+
+        List<Todo> filteredList = todos2.toList();
+
+        log.info("Filtered todos count : {}", filteredList.size());
+
+        List<TodoResponse> responseList = filteredList.stream()
+                .map(TodoMapper::toDto)
+                .toList();
+
+        return new PageImpl<>(responseList, todos.getPageable(), todos.getTotalElements());
     }
 
     @Override
     public TodoResponse getById(Long id) {
         String email = SecurityUtil.getCurrentUserEmail();
+        log.info("Fetching todo by todo id = {} of user = {}", id, email);
+
         Todo todo = todoRepository.findById(id)
                 .filter(t -> t.getUser().getEmail().equals(email))
                 .orElseThrow(() -> new ResourceNotFoundException("Todo not found"));
-        return mapper.map(todo, TodoResponse.class);
+        return TodoMapper.toDto(todo);
     }
 
+    @Transactional
     @Override
     public TodoResponse updateTodo(Long id, TodoRequest request) {
         String email = SecurityUtil.getCurrentUserEmail();
+        log.info("Updating todo.. id = {} of user = {}", id, email);
+
         Todo todo = todoRepository.findById(id)
                 .filter(t -> t.getUser().getEmail().equals(email))
                 .orElseThrow(() -> new ResourceNotFoundException("Todo not found"));
 
-        todo.setTitle(request.getTitle());
-        todo.setDescription(request.getDescription());
-        todo.setDueDate(request.getDueDate());
-        todo.setPriority(request.getPriority());
-        todo.setStatus(request.getStatus());
+        TodoMapper.updateEntity(todo, request);
 
+        log.debug("Saving update todo : {}", todo);
         Todo saved = todoRepository.save(todo);
 
-        return mapper.map(saved, TodoResponse.class);
+        return TodoMapper.toDto(saved);
     }
 
+    @Transactional
     @Override
     public void deleteTodo(Long id) {
         String email = SecurityUtil.getCurrentUserEmail();
+        log.info("deleting todo, id = {} of user = {}", id, email);
+
         Todo todo = todoRepository.findById(id)
                 .filter(t -> t.getUser().getEmail().equals(email))
                 .orElseThrow(() -> new ResourceNotFoundException("Todo not found"));
         todoRepository.delete(todo);
+        log.info("Todo deleted successfully : id = {}", id);
     }
 
-    @Override
-    public List<TodoResponse> getTodosByFilters(Priority priority, Status status, LocalDate dueDate) {
-
-        String email = SecurityUtil.getCurrentUserEmail();
-        List<Todo> todos = todoRepository.findByUserEmail(email);
-
-        if (priority != null) {
-            todos = todos.stream().filter(t -> t.getPriority() == priority).toList();
-        }
-        if (status != null) {
-            todos = todos.stream().filter(t -> t.getStatus() == status).toList();
-        }
-        if (dueDate != null) {
-            todos = todos.stream().filter(t -> t.getDueDate().equals(dueDate)).toList();
-        }
-
-        return todos.stream()
-                .map(todo -> mapper.map(todo, TodoResponse.class))
-                .toList();
-    }
-
+    @Transactional
     @Override
     public void importTodosFromFile(MultipartFile file) {
         String email = SecurityUtil.getCurrentUserEmail();
+        log.info("Importing todos from CSV file for user = {}", email);
 
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        try(BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream()))){
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream()))) {
 
-            String line;
             reader.readLine();
 
-            while ((line = reader.readLine()) != null){
-                String [] arrayData = line.split(",");
+            List<Todo> todoList = new ArrayList<>();
+            String line;
+
+            while ((line = reader.readLine()) != null) {
+                String[] arrayData = line.split(",");
                 Todo todo = new Todo();
                 todo.setTitle(arrayData[0]);
                 todo.setDescription(arrayData[1]);
@@ -149,10 +164,12 @@ public class TodoServiceImpl implements TodoService {
                 todo.setDueDate(LocalDate.parse(arrayData[4]));
                 todo.setUser(user);
 
-                todoRepository.save(todo);
+                todoList.add(todo);
             }
+            todoRepository.saveAll(todoList);
+            log.info("File import successfully for user = {}", email);
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Error.. importing todos from file : {}", e.getMessage());
         }
     }
 

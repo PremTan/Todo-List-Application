@@ -14,15 +14,14 @@ public interface TodoService {
 
     TodoResponse createTodo(TodoRequest request);
 
-    Page<TodoResponse> getTodosByCurrentUser(int page, int size, String sortBy, String sortDir, String text);
+    Page<TodoResponse> getTodosByCurrentUser(int page, int size, String sortBy, String sortDir,
+                                             String text, Priority priority, Status status, LocalDate dueDate);
 
     TodoResponse getById(Long id);
 
     TodoResponse updateTodo(Long id, TodoRequest request);
 
     void deleteTodo(Long id);
-
-    List<TodoResponse> getTodosByFilters(Priority priority, Status status, LocalDate dueDate);
 
     void importTodosFromFile(MultipartFile file);
 }

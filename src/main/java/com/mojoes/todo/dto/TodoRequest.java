@@ -5,7 +5,6 @@ import com.mojoes.todo.entity.Status;
 import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.time.LocalDate;
@@ -16,6 +15,7 @@ public class TodoRequest {
     @NotBlank(message = "Title is required")
     private String title;
 
+    @NotNull(message = "Description is required")
     private String description;
 
     @NotNull(message = "Priority is required")
@@ -24,7 +24,7 @@ public class TodoRequest {
     @NotNull(message = "Status is required")
     private Status status;
 
-    @FutureOrPresent
+    @FutureOrPresent(message = "Due date must not be in past")
     @NotNull(message = "Due date is required")
     private LocalDate dueDate;
 }

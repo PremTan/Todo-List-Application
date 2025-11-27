@@ -8,11 +8,14 @@ import lombok.Data;
 @Data
 public class ResetPasswordRequest {
 
-    @Email
-    @NotBlank
+    @Email(message = "Invalid email")
+    @NotBlank(message = "Email required")
     private String email;
-    @Size(min = 6, max = 6)
+
+    @Size(min = 6, max = 6, message = "OTP must be exact 6 digits")
     private String otp;
-    @Size(min = 6)
+
+    @NotBlank(message = "Password required")
+    @Size(min = 6, message = "Password must be >= 6 characters")
     private String newPassword;
 }
