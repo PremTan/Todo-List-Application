@@ -1,7 +1,9 @@
 package com.mojoes.todo.service.impl;
 
 import com.mojoes.todo.dto.*;
+import com.mojoes.todo.entity.AuthProviderType;
 import com.mojoes.todo.entity.PasswordReset;
+import com.mojoes.todo.entity.Role;
 import com.mojoes.todo.entity.User;
 import com.mojoes.todo.exception.DuplicateEmailException;
 import com.mojoes.todo.exception.ResourceNotFoundException;
@@ -17,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +27,8 @@ import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -283,6 +288,38 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         return UserMapper.toDto(user);
+    }
+
+    @Transactional
+    @Override
+    public AuthResponse handleOAuth2LoginRequest(OAuth2User auth2User, String registrationId) {
+        AuthProviderType providerType = jwtUtil.getProviderTypeFromRegistrationId(registrationId);
+        String providerId = jwtUtil.getProviderIdFromOAuth2User(auth2User, registrationId);
+
+        String email = auth2User.getAttribute("email");
+        String name = auth2User.getAttribute("name");
+
+        if(email == null){
+            email = providerType + "_" + providerId + "@oauth.user";
+        }
+
+        User user = userRepository.findByEmail(email).orElse(null);
+
+        if(user == null) {
+            user = new User();
+            user.setEmail(email);
+            user.setName(name != null ? name : providerType + " User");
+            user.setProvider(providerType);
+            user.setProviderId(providerId);
+            user.setOauthUser(true);
+            user.setRole(Role.USER);
+            user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
+            userRepository.save(user);
+        }
+
+        String jwt = jwtUtil.generateToken(user);
+
+        return new AuthResponse(jwt);
     }
 
 }

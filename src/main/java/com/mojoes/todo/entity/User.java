@@ -36,6 +36,16 @@ public class User {
     @Column(nullable = false)
     private boolean blocked = false;
 
+    @Column(nullable = true)
+    @Enumerated(value = EnumType.STRING)
+    private AuthProviderType provider;
+
+    @Column(nullable = true)
+    private String providerId;
+
+    @Column(nullable = false)
+    private boolean oauthUser = false;
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Todo> todos;
 }

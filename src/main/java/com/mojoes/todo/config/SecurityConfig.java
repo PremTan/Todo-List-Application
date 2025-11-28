@@ -1,6 +1,7 @@
 package com.mojoes.todo.config;
 
 import com.mojoes.todo.entity.Role;
+import com.mojoes.todo.security.CustomAuthenticationEntryPoint;
 import com.mojoes.todo.security.JwtAuthFilter;
 import com.mojoes.todo.security.Oauth2SuccessHandler;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,7 @@ public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
     private final Oauth2SuccessHandler oauth2SuccessHandler;
+    private final CustomAuthenticationEntryPoint entryPoint;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity security) throws Exception {
@@ -38,26 +40,23 @@ public class SecurityConfig {
                         "/api/auth/login",
                         "/api/auth/forgot-password",
                         "/api/auth/reset-password").permitAll()
+                        .requestMatchers("/oauth2/**", "/login/oauth2/**", "/error").permitAll()
                         .requestMatchers("/api/admin/**").hasRole(Role.ADMIN.getLabel())
                         .requestMatchers("/api/todos/**").hasAnyRole(Role.ADMIN.getLabel(), Role.USER.getLabel())
                         .requestMatchers("/api/users/**").hasAnyRole(Role.ADMIN.getLabel(), Role.USER.getLabel())
                         .anyRequest().authenticated()
                 )
+                .exceptionHandling(ex -> ex.authenticationEntryPoint(entryPoint))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
-                .oauth2Login(oauth -> oauth.failureHandler((request, response, ex) -> log.error("OAuth Error : {}", ex.getMessage()))
+                .oauth2Login(oauth -> oauth
+                        .authorizationEndpoint(authorization -> authorization.baseUri("/oauth2/authorization"))
+                        .redirectionEndpoint(redirection -> redirection.baseUri("/login/oauth2/code/*"))
+                        .failureHandler((request, response, ex) -> {
+                            log.error("OAuth Error : {}", ex.getMessage());
+                        })
                         .successHandler(oauth2SuccessHandler));
         return security.build();
-    }
-
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
-
-    @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
-        return config.getAuthenticationManager();
     }
 
     @Bean
