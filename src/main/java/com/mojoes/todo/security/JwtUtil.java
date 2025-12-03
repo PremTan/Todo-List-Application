@@ -6,7 +6,6 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -62,6 +61,14 @@ public class JwtUtil {
 
     public String getEmailFromClaims(String token){
         return getClaims(token).getSubject();
+    }
+
+    public Long getIdFromClaims(String token){
+        return getClaims(token).get("id", Long.class);
+    }
+
+    public String getNameFromClaims(String token){
+        return getClaims(token).get("name", String.class);
     }
 
     public boolean isTokenValid(String token, UserDetails userDetails) {

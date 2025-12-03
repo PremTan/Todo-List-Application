@@ -1,6 +1,5 @@
 package com.mojoes.todo.security;
 
-import com.mojoes.todo.entity.AuthProviderType;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 

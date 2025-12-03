@@ -34,8 +34,6 @@ public class Oauth2SuccessHandler implements AuthenticationSuccessHandler {
 
         String jwt = authResponse.getToken();
 
-//        response.sendRedirect("http://localhost:3000/oauth-success?token=" + jwt);
-
         response.setContentType("application/json");
         response.getWriter().write("Token : " + jwt);
     }
